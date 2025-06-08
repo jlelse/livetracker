@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-F-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveTracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+    <style>
+        body { margin: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
+        #map { flex-grow: 1; }
+        #info { padding: 10px; }
+    </style>
+</head>
+<body>
+    <div id="info">
+        Status: <span id="status">Connecting...</span> —
+        Last Update: <span id="lastUpdate">-</span> —
+        Coordinates: <span id="coords">-</span> —
+        Speed: <span id="speed">-</span> km/h
+    </div>
+    <div id="map"></div>
+    <script src="/script.js"></script>
+</body>
+</html>
