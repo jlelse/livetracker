@@ -38,6 +38,17 @@ document.addEventListener('DOMContentLoaded', () => {
         timestampMarkers.push(marker);
     });
 
+    function requestHistory(startTs, endTs) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            const msg = { type: 'get_history' };
+            if (startTs && endTs) {
+                msg.start = startTs;
+                msg.end = endTs;
+            }
+            ws.send(JSON.stringify(msg));
+        }
+    }
+
     function connectWebSocket() {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
@@ -45,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ws.onopen = () => {
             statusEl.textContent = 'Connected';
             console.log('WebSocket connected');
-            ws.send(JSON.stringify({ type: 'get_history' }));
+            requestHistory();
         };
 
         ws.onmessage = (event) => {
@@ -53,11 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = JSON.parse(event.data);
                 if (data.type === 'update') {
                     handleLocationUpdate(data.payload);
-                } else if (data.type === 'history' && data.payload.length > 0) {
-                    handleHistory(data.payload);
-                } else if (data.type === 'history' && data.payload.length === 0) {
-                    console.log('No historical data received');
-                    statusEl.textContent = 'Connected (no history)';
+                } else if (data.type === 'history') {
+                    handleHistory(data.payload ? data.payload : []);
                 }
             } catch (e) {
                 console.error('Error parsing WebSocket message:', e);
@@ -128,13 +136,44 @@ document.addEventListener('DOMContentLoaded', () => {
         polylinePoints = points.slice(0, -1);
 
         if (points.length > 0) {
+            statusEl.textContent = 'Connected';
             const lastPoint = points[points.length - 1];
             handleLocationUpdate(lastPoint);
             map.fitBounds(trackPolyline.getBounds(), { padding: [50, 50] });
         } else {
             statusEl.textContent = 'Connected (no history)';
+            lastUpdateEl.textContent = '-';
+            coordsEl.textContent = '-';
+            speedEl.textContent = '-';
+            map.removeLayer(currentMarker);
+            currentMarker = null;
         }
     }
+
+    // Time range controls
+    const startTimeEl = document.getElementById('startTime');
+    const endTimeEl = document.getElementById('endTime');
+    const loadRangeBtn = document.getElementById('loadRange');
+    const loadRecentBtn = document.getElementById('loadRecent');
+
+    loadRangeBtn.addEventListener('click', () => {
+        if (!startTimeEl.value || !endTimeEl.value) {
+            alert('Please select both start and end times');
+            return;
+        }
+        // Parse as local time and convert to UTC milliseconds
+        const startTs = new Date(startTimeEl.value).getTime();
+        const endTs = new Date(endTimeEl.value).getTime();
+        if (startTs && endTs && startTs < endTs) {
+            requestHistory(startTs, endTs);
+        } else {
+            alert('Please select a valid time range');
+        }
+    });
+
+    loadRecentBtn.addEventListener('click', () => {
+        requestHistory();
+    });
 
     connectWebSocket();
 });

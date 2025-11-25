@@ -1,9 +1,9 @@
 module git.jlel.se/jlelse/LiveTracker
 
-go 1.24.0
+go 1.25.0
 
 require (
-	github.com/coder/websocket v1.8.13
+	github.com/coder/websocket v1.8.14
 	github.com/gorilla/websocket v1.5.3
-	github.com/mattn/go-sqlite3 v1.14.28
+	github.com/mattn/go-sqlite3 v1.14.32
 )

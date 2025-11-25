@@ -125,6 +125,10 @@ The application is configured via environment variables:
 
 All received location data is stored in the SQLite database. On first load, the web interface displays the last 3 hours of history, but older data remains available in the database for future use or export.
 
+## Custom Time Range
+
+The web interface includes datetime pickers that allow you to view location history from any custom time range. Use the "From" and "To" fields to select your desired time range, then click "Load Range" to fetch the data. Click "Load Recent" to reset to the default view.
+
 ## Production Use
 
 For production deployments, it is strongly recommended to run LiveTracker behind a reverse proxy with HTTPS, such as [Caddy](https://caddyserver.com/) or Nginx. This ensures secure access to your tracking data and credentials.

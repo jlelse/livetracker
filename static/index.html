@@ -10,9 +10,19 @@
         body { margin: 0; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
         #map { flex-grow: 1; }
         #info { padding: 10px; }
+        #controls { padding: 10px; background: #f5f5f5; border-bottom: 1px solid #ddd; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        #controls label { font-size: 14px; }
+        #controls input[type="datetime-local"] { padding: 4px; }
+        #controls button { padding: 6px 12px; cursor: pointer; }
     </style>
 </head>
 <body>
+    <div id="controls">
+        <label>From: <input type="datetime-local" id="startTime"></label>
+        <label>To: <input type="datetime-local" id="endTime"></label>
+        <button id="loadRange">Load Range</button>
+        <button id="loadRecent">Load Recent</button>
+    </div>
     <div id="info">
         Status: <span id="status">Connecting...</span> —
         Last Update: <span id="lastUpdate">-</span> —

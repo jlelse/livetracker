@@ -241,3 +241,82 @@ func TestSendHistoricalData(t *testing.T) {
 		t.Fatalf("Inserted location not found in history payload")
 	}
 }
+
+func TestSendHistoricalDataWithTimeRange(t *testing.T) {
+	// Test that the WebSocket handler filters historical data by time range
+	a := setupTestApp(t)
+	defer a.db.Close()
+
+	// Insert locations at different timestamps
+	now := time.Now().Unix() * 1000
+	oneHourAgo := now - 3600*1000
+	twoHoursAgo := now - 7200*1000
+	fourHoursAgo := now - 14400*1000
+
+	// Location within range (1 hour ago)
+	_, err := a.insertLocationStmt.Exec(11.0, 21.0, nil, nil, nil, nil, oneHourAgo)
+	if err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+	// Location within range (2 hours ago)
+	_, err = a.insertLocationStmt.Exec(12.0, 22.0, nil, nil, nil, nil, twoHoursAgo)
+	if err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+	// Location outside range (4 hours ago)
+	_, err = a.insertLocationStmt.Exec(13.0, 23.0, nil, nil, nil, nil, fourHoursAgo)
+	if err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	ts := httptest.NewServer(http.HandlerFunc(a.wsHandler))
+	defer ts.Close()
+
+	u := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
+	dialer := gwss.DefaultDialer
+	c, resp, err := dialer.Dial(u, nil)
+	if err != nil {
+		body := ""
+		if resp != nil {
+			b := make([]byte, 1024)
+			n, _ := resp.Body.Read(b)
+			body = string(b[:n])
+		}
+		t.Fatalf("WebSocket dial failed: %v, body: %s", err, body)
+	}
+	defer c.Close()
+
+	time.Sleep(100 * time.Millisecond)
+
+	// Request history with time range (last 3 hours, should exclude 4 hours ago)
+	threeHoursAgo := now - 10800*1000
+	msg := map[string]any{"type": "get_history", "start": float64(threeHoursAgo), "end": float64(now)}
+	if err := c.WriteJSON(msg); err != nil {
+		t.Fatalf("WriteJSON failed: %v", err)
+	}
+
+	type wsMsg struct {
+		Type    string          `json:"type"`
+		Payload []locationPoint `json:"payload"`
+	}
+	var reply wsMsg
+	c.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if err := c.ReadJSON(&reply); err != nil {
+		t.Fatalf("ReadJSON failed: %v", err)
+	}
+	if reply.Type != "history" {
+		t.Fatalf("Expected type=history, got %s", reply.Type)
+	}
+
+	// Should have exactly 2 locations (1 hour ago and 2 hours ago)
+	if len(reply.Payload) != 2 {
+		t.Fatalf("Expected 2 locations in filtered history, got %d", len(reply.Payload))
+	}
+
+	// Verify the 4-hour-old location is not included
+	for _, p := range reply.Payload {
+		if p.Latitude == 13.0 && p.Longitude == 23.0 {
+			t.Fatalf("Location from 4 hours ago should not be in filtered results")
+		}
+	}
+}

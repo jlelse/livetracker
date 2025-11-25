@@ -366,19 +366,33 @@ func (a *app) wsHandler(w http.ResponseWriter, r *http.Request) {
 				}
 				break
 			}
-			var msg map[string]string
+			var msg map[string]any
 			if err := json.Unmarshal(p, &msg); err == nil {
-				if msgType, ok := msg["type"]; ok && msgType == "get_history" {
-					a.sendHistoricalData(c)
+				if msgType, ok := msg["type"].(string); ok && msgType == "get_history" {
+					var startTs, endTs int64
+					if start, ok := msg["start"].(float64); ok {
+						startTs = int64(start)
+					}
+					if end, ok := msg["end"].(float64); ok {
+						endTs = int64(end)
+					}
+					a.sendHistoricalData(c, startTs, endTs)
 				}
 			}
 		}
 	}(conn)
 }
 
-func (a *app) sendHistoricalData(conn *websocket.Conn) {
-	// Send historical location data (last 3 hours) to a WebSocket client
-	rows, err := a.db.Query("SELECT latitude, longitude, timestamp, altitude, speed, bearing, accuracy_hdop FROM locations WHERE (timestamp / 1000) >= (unixepoch() - 10800) ORDER BY timestamp ASC")
+func (a *app) sendHistoricalData(conn *websocket.Conn, startTs, endTs int64) {
+	// Send historical location data to a WebSocket client
+	// If startTs and endTs are 0, default to last 3 hours
+	var rows *sql.Rows
+	var err error
+	if startTs > 0 && endTs > 0 {
+		rows, err = a.db.Query("SELECT latitude, longitude, timestamp, altitude, speed, bearing, accuracy_hdop FROM locations WHERE timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC", startTs, endTs)
+	} else {
+		rows, err = a.db.Query("SELECT latitude, longitude, timestamp, altitude, speed, bearing, accuracy_hdop FROM locations WHERE (timestamp / 1000) >= (unixepoch() - 10800) ORDER BY timestamp ASC")
+	}
 	if err != nil {
 		log.Printf("Error fetching historical data: %v", err)
 		return
